@@ -19,81 +19,58 @@ interface Transaction {
 }
 
 const CommissionReport = () => {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
+  const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [startDate, setStartDate] = useState(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [transactionType, setTransactionType] = useState<string>('all');
   const [partners, setPartners] = useState<{ id: string; name: string }[]>([]);
 
+  // Load all transactions on mount
   useEffect(() => {
-    fetchTransactions();
-  }, [startDate, endDate, transactionType]);
+    if (commissionAccountId) {
+      fetchTransactions();
+    }
+  }, [startDate, endDate, commissionAccountId]);
+
+  // Filter transactions when type changes
+  useEffect(() => {
+    if (allTransactions.length > 0) {
+      const filtered = transactionType === 'all'
+        ? allTransactions
+        : allTransactions.filter(t => t.transaction_type === transactionType);
+      setFilteredTransactions(filtered);
+    }
+  }, [transactionType, allTransactions]);
   
   // Fetch commission account ID
   const [commissionAccountId, setCommissionAccountId] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchCommissionAccount = async () => {
-      let retryCount = 0;
-      const maxRetries = 3;
-      const retryDelay = 1000; // 1 second
-
-      const attemptFetch = async () => {
-        try {
-          const { data: commissionAccount, error } = await supabase
-            .from('chart_of_accounts')
-            .select('id, is_active, name, currency_id')
-            .eq('id', '3f6eece2-1b3a-4b0d-8499-81762e32ba6e')
-            .single();
-
-          if (!commissionAccount || !commissionAccount.is_active || commissionAccount.currency_id !== '9b796c1e-fec4-4ef9-a3d8-644f50ae5291') {
-            toast.error('Commission account not found or inactive or currency mismatch');
-            return;
-          }
-
-          if (error) {
-            if (error.code === 'PGRST116') {
-              console.error('Commission account not found:', error);
-              toast.error('Commission account not found in the system');
-            } else if (error.code === 'PGRST109') {
-              if (retryCount < maxRetries) {
-                retryCount++;
-                console.log(`Retrying connection (${retryCount}/${maxRetries})...`);
-                await new Promise(resolve => setTimeout(resolve, retryDelay));
-                return await attemptFetch();
-              }
-              console.error('Database connection error:', error);
-              toast.error('Unable to connect to the database after multiple attempts. Please try again.');
-            } else {
-              console.error('Error fetching commission account:', error);
-              toast.error(`Failed to fetch commission account: ${error.message || 'Unknown error'}`);
-            }
-            return;
-          }
-
-          if (!commissionAccount) {
-            toast.error('Commission account not found');
-            return;
-          }
-
-          if (!commissionAccount.is_active) {
-            toast.error('Commission account is inactive. Please activate it first.');
-            return;
-          }
-
-          setCommissionAccountId(commissionAccount.id);
-          console.log(`Commission account initialized: ${commissionAccount.name}`);
-        } catch (error) {
-          console.error('Error in fetchCommissionAccount:', error);
-          toast.error('Failed to initialize commission account. Please check system configuration.');
+    const initializeCommissionAccount = async () => {
+      try {
+        const { data: commissionAccount, error } = await supabase
+          .from('chart_of_accounts')
+          .select('id, is_active, name, currency_id')
+          .eq('code', '0000000005')
+          .single();
+    
+        if (error || !commissionAccount || !commissionAccount.is_active || commissionAccount.currency_id !== '9b796c1e-fec4-4ef9-a3d8-644f50ae5291') {
+          toast.error('Commission account not found or inactive or currency mismatch');
+          return;
         }
-      };
-
-      await attemptFetch();
+    
+        setCommissionAccountId(commissionAccount.id);
+        console.log(`Commission account initialized: ${commissionAccount.name}`);
+        fetchTransactions();
+      } catch (error) {
+        console.error('Error initializing commission account:', error);
+        toast.error('Failed to initialize commission account. Please check system configuration.');
+      }
     };
-
-    fetchCommissionAccount();
+  
+    initializeCommissionAccount();
   }, []);
 
   useEffect(() => {
@@ -172,7 +149,14 @@ const CommissionReport = () => {
       }
 
       if (!data || data.length === 0) {
-        setTransactions([]);
+        setAllTransactions([]);
+        setFilteredTransactions([]);
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        setAllTransactions([]);
+        setFilteredTransactions([]);
         return;
       }
 
@@ -207,7 +191,8 @@ const CommissionReport = () => {
         }
       }).filter(transaction => transaction !== null);  // Remove any null values in the final report
 
-      setTransactions(formattedTransactions);
+      setAllTransactions(formattedTransactions);
+      setFilteredTransactions(formattedTransactions);
     } catch (error) {
       console.error('Error fetching transactions:', error);
       if (error instanceof Error) {
@@ -349,8 +334,9 @@ const CommissionReport = () => {
             >
               <option value="all">All Types</option>
               <option value="GENT">General Trading</option>
-              <option value="IPT">Interparty Transfer</option>
-              <option value="IPTCOM">Interparty Transfer with Commission</option>
+              <option value="IPTC">Interparty Transfer with Commission</option>
+              <option value="MNGC">Management Commission</option>
+              <option value="BNKT">Bank Transfer</option>
             </select>
           </div>
           <div>
@@ -381,7 +367,7 @@ const CommissionReport = () => {
               </tr>
             </thead>
             <tbody className="divide-y dark:divide-gray-700">
-              {transactions.map((transaction, index) => (
+              {filteredTransactions.map((transaction, index) => (
                 <tr key={index}>
                   <td className="py-3">{transaction.date}</td>
                   <td className="py-3">{transaction.transaction_type}</td>
@@ -396,7 +382,7 @@ const CommissionReport = () => {
                   </td>
                 </tr>
               ))}
-              {transactions.length === 0 && (
+              {filteredTransactions.length === 0 && (
                 <tr>
                   <td colSpan={7} className="py-4 text-center text-gray-500 dark:text-gray-400">
                     {isLoading ? 'Loading transactions...' : 'No transactions found for the selected criteria'}
@@ -404,13 +390,13 @@ const CommissionReport = () => {
                 </tr>
               )}
             </tbody>
-            {transactions.length > 0 && (
+            {filteredTransactions.length > 0 && (
               <tfoot>
                 <tr className="border-t dark:border-gray-700 font-semibold">
                   <td colSpan={6} className="py-3 text-right">Total Commission:</td>
                   <td className="py-3 text-right">
                     {formatAmount(
-                      transactions.reduce((sum, t) => sum + t.commission, 0)
+                      filteredTransactions.reduce((sum, t) => sum + t.commission, 0)
                     )}
                   </td>
                 </tr>
