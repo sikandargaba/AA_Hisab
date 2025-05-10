@@ -170,9 +170,6 @@ export default function EditBankTransfer() {
         if (id && commissionAccount.id) {
           await fetchTransaction(id);
         }
-
-        const amount = customerTrans ? customerTrans.debit - customerTrans.credit : 0;
-const commissionAmount = commissionTrans ? commissionTrans.credit : 0;
       } catch (error) {
         console.error('Error initializing component:', error);
         setError('Failed to initialize form');
@@ -286,6 +283,11 @@ const commissionAmount = commissionTrans ? commissionTrans.credit : 0;
 
       // Log the transaction data to debug
       console.log('Transaction data:', data);
+
+      // Calculate amount (Supplier's Credit - Commission)
+      const supplierCredit = supplierTrans ? supplierTrans.credit : 0;
+      const commissionAmount = commissionTrans ? commissionTrans.credit : 0;
+      const amount = supplierCredit - commissionAmount;
 
       // Get selling rate from transaction or calculate it
       const sellingRate = customerTrans?.sales_rate || 

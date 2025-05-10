@@ -124,9 +124,6 @@ export default function BankTransfer() {
           const typeId = types[0].type_id;
           setTransactionTypeId(typeId);
           setFormData(prev => ({ ...prev, type: typeId }));
-          
-          // Fetch transactions for this type
-          await fetchTransactionsForType(typeId);
         }
 
         // Fetch commission account ID
@@ -150,6 +147,13 @@ export default function BankTransfer() {
 
     initializeComponent();
   }, []);
+
+  // Fetch transactions when transaction type is set
+  useEffect(() => {
+    if (transactionTypeId) {
+      fetchTransactionsForType(transactionTypeId);
+    }
+  }, [transactionTypeId]);
 
   const fetchBusinessPartners = async () => {
     try {
@@ -191,11 +195,6 @@ export default function BankTransfer() {
 
   const fetchTransactionsForType = async (typeId: string) => {
     try {
-      if (!typeId) {
-        setTransactions([]);
-        return;
-      }
-
       setIsLoading(true);
       const { data, error } = await supabase
         .from('gl_headers')
@@ -221,7 +220,7 @@ export default function BankTransfer() {
             )
           )
         `)
-        .eq('type_id', typeId)
+        .in('type_id', transactionTypes.map(t => t.type_id))
         .in('status', ['draft', 'posted'])
         .order('transaction_date', { ascending: false })
         .limit(limit);

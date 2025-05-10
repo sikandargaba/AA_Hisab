@@ -234,11 +234,10 @@ export default function EditCashEntry() {
       // Determine document amount (positive for debit, negative for credit)
       let documentAmount = 0;
       if (cashTransaction.debit > 0) {
-        documentAmount = cashTransaction.debit_doc_currency;
+        documentAmount = cashTransaction.debit;
       } else if (cashTransaction.credit > 0) {
-        documentAmount = -cashTransaction.credit_doc_currency;
+        documentAmount = -cashTransaction.credit;
       }
-      
       // Set form data
       setFormData({
         date: data.transaction_date,
