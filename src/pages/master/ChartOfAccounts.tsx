@@ -515,26 +515,26 @@ export default function ChartOfAccounts() {
       const workbook = XLSX.utils.book_new();
       
       const headers = [
-        'Account Title',
+        'Code',
+        'Name',
         'Alias Name',
+        'Category',
         'Sub Category',
-        'Zakat Eligible'
+        'Zakat',
+        'Cash Book',
+        'Currency'
       ];
       
-      const sampleData = [
-        {
-          'Account Title': 'Cash in Hand',
-          'Alias Name': 'Petty Cash',
-          'Sub Category': 'Cash and Bank',
-          'Zakat Eligible': 'No'
-        },
-        {
-          'Account Title': 'Accounts Receivable',
-          'Alias Name': 'Trade Debtors',
-          'Sub Category': 'Current Assets',
-          'Zakat Eligible': 'Yes'
-        }
-      ];
+      const sampleData = accounts.map(account => ({
+        'Code': account.code,
+        'Name': account.name,
+        'Alias Name': account.alias_name,
+        'Category': account.subcategory.category.name,
+        'Sub Category': account.subcategory.name,
+        'Zakat': account.zakat_eligible ? 'Yes' : 'No',
+        'Cash Book': account.is_cashbook ? 'Yes' : 'No',
+        'Currency': account.currency ? account.currency.code : ''
+      }));
       
       const worksheet = XLSX.utils.json_to_sheet(sampleData, { header: headers });
       

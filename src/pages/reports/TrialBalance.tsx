@@ -139,8 +139,8 @@ export default function TrialBalance() {
             name
           ),
           gl_transactions (
-            debit,
-            credit,
+            debit_doc_currency,
+            credit_doc_currency,
             header:gl_headers!inner (
               status,
               transaction_date
@@ -157,8 +157,8 @@ export default function TrialBalance() {
           t.header.transaction_date <= selectedDate
         );
 
-        const totalDebit = transactions.reduce((sum, t) => sum + (t.debit || 0), 0);
-        const totalCredit = transactions.reduce((sum, t) => sum + (t.credit || 0), 0);
+        const totalDebit = transactions.reduce((sum, t) => sum + (t.debit_doc_currency || 0), 0);
+        const totalCredit = transactions.reduce((sum, t) => sum + (t.credit_doc_currency || 0), 0);
 
         return {
           code: account.code,

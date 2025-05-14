@@ -279,6 +279,18 @@ export default function CashEntry() {
         return;
       }
 
+      let debitDocCurrency, creditDocCurrency;
+      if (selectedCashBook.currency.exchange_rate_note === 'multiply') {
+        debitDocCurrency = amount > 0 ? Math.abs(amount) * exchangeRate : 0;
+        creditDocCurrency = amount < 0 ? Math.abs(amount) * exchangeRate : 0;
+      } else if (selectedCashBook.currency.exchange_rate_note === 'divide') {
+        debitDocCurrency = amount > 0 ? Math.abs(amount) / exchangeRate : 0;
+        creditDocCurrency = amount < 0 ? Math.abs(amount) / exchangeRate : 0;
+      } else {
+        debitDocCurrency = amount > 0 ? Math.abs(amount) : 0;
+        creditDocCurrency = amount < 0 ? Math.abs(amount) : 0;
+      }
+
       // Create transaction header
       const { data: header, error: headerError } = await supabase
         .from('gl_headers')
@@ -300,8 +312,8 @@ export default function CashEntry() {
           account_id: selectedCashBook.id,
           debit: amount > 0 ? Math.abs(amount) : 0,
           credit: amount < 0 ? Math.abs(amount) : 0,
-          debit_doc_currency: amount > 0 ? Math.abs(amount) : 0,
-          credit_doc_currency: amount < 0 ? Math.abs(amount) : 0,
+          debit_doc_currency: debitDocCurrency,
+          credit_doc_currency: creditDocCurrency,
           exchange_rate: exchangeRate,
           currency_id: selectedCashBook.currency.id,
           description: formData.narration.toUpperCase()
@@ -311,8 +323,8 @@ export default function CashEntry() {
           account_id: selectedPartner.id,
           debit: amount < 0 ? Math.abs(amount) : 0,
           credit: amount > 0 ? Math.abs(amount) : 0,
-          debit_doc_currency: amount < 0 ? Math.abs(amount) : 0,
-          credit_doc_currency: amount > 0 ? Math.abs(amount) : 0,
+          debit_doc_currency: creditDocCurrency,
+          credit_doc_currency: debitDocCurrency,
           exchange_rate: exchangeRate,
           currency_id: selectedCashBook.currency.id,
           description: formData.narration.toUpperCase()
