@@ -417,11 +417,12 @@ function GeneralTrading() {
   };
 
   const getTransactionAmount = (transaction: Transaction): number => {
-    const customerTransaction = transaction.gl_transactions.find(t => 
-      t.account.id !== commissionAccountId && t.debit_doc_currency > 0
+    const fromTransaction = transaction.gl_transactions.find(t => 
+      t.account.id !== commissionAccountId && t.credit > 0
     );
-    
-    return customerTransaction?.debit_doc_currency || 0;
+    const sellingRate = transaction.selling_rate || 0;
+    const amount = fromTransaction?.credit || 0;
+    return amount - (amount / 100000) * sellingRate;
   };
 
   const getCustomerName = (transaction: Transaction): string => {

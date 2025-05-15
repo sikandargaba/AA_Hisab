@@ -3,6 +3,7 @@ import { toast } from 'react-hot-toast';
 import { Search, Edit } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
+import { formatAmount } from '../../lib/format';
 
 interface BusinessPartner {
   id: string;
@@ -50,12 +51,10 @@ export default function BankTransfer() {
   const [transactionTypeId, setTransactionTypeId] = useState<string | null>(null);
   const [commissionAccountId, setCommissionAccountId] = useState<string | null>(null);
   const [baseCurrencyId, setBaseCurrencyId] = useState<string | null>(null);
-  const [currencies, setCurrencies] = useState<{ id: string; code: string }[]>([]);
+  const [currencies, setCurrencies] = useState<any[]>([]);
   const [transactionTypes, setTransactionTypes] = useState<TransactionType[]>([]);
-
-  // State for transaction list pagination and filtering
-  const [limit, setLimit] = useState(20);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [limit] = useState(20);
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Form state
   const [formData, setFormData] = useState({
@@ -322,7 +321,8 @@ export default function BankTransfer() {
           sales_rate: sellingRate, // Store selling rate in dedicated field
           purchase_rate: 0, // Not applicable for customer transaction
           currency_id: baseCurrencyId,
-          description: formData.narration.toUpperCase()
+          description: formData.narration.toUpperCase(),
+          amount: amount // Store original amount
         },
         {
           header_id: header.id,
@@ -335,7 +335,8 @@ export default function BankTransfer() {
           purchase_rate: purchaseRate, // Store purchase rate in dedicated field
           sales_rate: 0, // Not applicable for supplier transaction
           currency_id: baseCurrencyId,
-          description: formData.narration.toUpperCase()
+          description: formData.narration.toUpperCase(),
+          amount: amount // Store original amount
         }
       ];
 
@@ -433,12 +434,10 @@ export default function BankTransfer() {
   };
 
   const getTransactionAmount = (transaction: Transaction): number => {
-    // Find the customer transaction (debit entry)
     const customerTransaction = transaction.gl_transactions.find(t => 
       t.account_id !== commissionAccountId && t.debit > 0
     );
-    
-    return customerTransaction?.debit_doc_currency || customerTransaction?.debit || 0;
+    return customerTransaction?.debit_doc_currency || 0;
   };
 
   const getCustomerName = (transaction: Transaction): string => {
@@ -481,11 +480,21 @@ export default function BankTransfer() {
     return commissionTransaction?.credit || 0;
   };
 
+
+
+
+
   if (error) {
     return (
-      <div className="p-4 text-center">
-        <div className="bg-red-50 dark:bg-red-900/50 p-4 rounded-lg">
-          <p className="text-red-600 dark:text-red-300">{error}</p>
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <p className="text-red-500 text-lg">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            Retry
+          </button>
         </div>
       </div>
     );
@@ -493,10 +502,10 @@ export default function BankTransfer() {
 
   if (isLoading) {
     return (
-      <div className="p-4 text-center">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/4 mx-auto mb-4"></div>
-          <div className="h-64 bg-gray-200 dark:bg-gray-700 rounded"></div>
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center space-y-4">
+          <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/4 mx-auto mb-4 animate-pulse"></div>
+          <div className="h-64 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
         </div>
       </div>
     );
@@ -617,36 +626,38 @@ export default function BankTransfer() {
                   value={formData.amount}
                   onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  min="0"
                   step="0.01"
-                  min="0.01"
                   required
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Selling Rate Per 100k
+                  Selling Rate
                 </label>
                 <input
                   type="number"
                   value={formData.sellingRate}
                   onChange={(e) => setFormData({ ...formData, sellingRate: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  step="0.01"
+                  min="0"
+                  step="0.0001"
                   required
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Purchase Rate Per 100k
+                  Purchase Rate
                 </label>
                 <input
                   type="number"
                   value={formData.purchaseRate}
                   onChange={(e) => setFormData({ ...formData, purchaseRate: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  step="0.01"
+                  min="0"
+                  step="0.0001"
                   required
                 />
               </div>
@@ -656,25 +667,25 @@ export default function BankTransfer() {
                   Commission
                 </label>
                 <input
-                  type="text"
+                  type="number"
                   value={formData.commission}
-                  className="w-full px-3 py-2 border rounded-lg bg-gray-100 dark:bg-gray-600 dark:border-gray-500"
                   readOnly
+                  className="w-full px-3 py-2 border rounded-lg bg-gray-100 dark:bg-gray-600 dark:border-gray-500"
                 />
               </div>
             </div>
 
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end space-x-4">
               <button
                 type="button"
                 onClick={handleCancel}
-                className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 dark:text-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600"
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
                 Save
               </button>
@@ -683,139 +694,86 @@ export default function BankTransfer() {
         </div>
       </div>
 
-      {/* Recent Transactions */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+      {/* Transactions List */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
         <div className="p-6">
-          <h2 className="text-lg font-semibold mb-4">Recent Transactions</h2>
-          
-          <div className="mb-4 flex justify-between items-center">
-            <div className="relative w-64">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search transactions..."
-                className="w-full pl-10 pr-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold">Recent Transactions</h2>
+            <div className="flex space-x-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <input
+                  type="text"
+                  placeholder="Search transactions..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 pr-4 py-2 border rounded-lg w-64 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
             </div>
-            <button
-              onClick={fetchTransactions}
-              className="px-4 py-2 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 dark:text-blue-400 dark:bg-blue-900/20 dark:hover:bg-blue-900/30"
-            >
-              Refresh
-            </button>
           </div>
-          
+
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead>
-                <tr className="text-left border-b dark:border-gray-700">
-                  <th className="pb-3 font-semibold">Date</th>
-                  <th className="pb-3 font-semibold">Voucher No</th>
-                  <th className="pb-3 font-semibold">Customer</th>
-                  <th className="pb-3 font-semibold">Supplier</th>
-                  <th className="pb-3 font-semibold text-right">Amount</th>
-                  <th className="pb-3 font-semibold text-right">Commission</th>
-                  <th className="pb-3 font-semibold text-center">Actions</th>
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Date
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Description
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Customer
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Supplier
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Amount
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Commission
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
               </thead>
-              <tbody className={`divide-y dark:divide-gray-700 ${isLoading ? 'opacity-50' : ''}`}>
-                {transactions
-                  .filter(transaction => {
-                    if (!searchTerm) return true;
-                    const searchLower = searchTerm.toLowerCase();
-                    const customerName = getCustomerName(transaction).toLowerCase();
-                    const supplierName = getSupplierName(transaction).toLowerCase();
-                    const voucherNo = transaction.voucher_no.toLowerCase();
-                    const description = transaction.description.toLowerCase();
-                    
-                    return customerName.includes(searchLower) || 
-                           supplierName.includes(searchLower) || 
-                           voucherNo.includes(searchLower) ||
-                           description.includes(searchLower);
-                  })
-                  .map((transaction) => {
-                  // Log the transaction for debugging
-                  console.log('Processing transaction:', transaction.voucher_no);
-                  
-                  const commission = getCommissionAmount(transaction);
-                  const baseamount = getTransactionAmount(transaction);
-                  const amount = baseamount - commission - commission; 
-                  const customerName = getCustomerName(transaction);
-                  const supplierName = getSupplierName(transaction);
-                  
-                  
-                  // Log the calculated values
-                  console.log('Commission for', transaction.voucher_no, ':', commission);
-                  
-                  const currencyCode = transaction.gl_transactions[0] ? 
-                    getCurrencyCode(transaction.gl_transactions[0].currency_id) : '';
-                  return (
-                    <tr key={transaction.id}>
-                      <td className="py-3">
-                        {new Date(transaction.transaction_date).toLocaleDateString()}
-                      </td>
-                      <td className="py-3">{transaction.voucher_no}</td>
-                      <td className="py-3">{customerName}</td>
-                      <td className="py-3">{supplierName}</td>
-                      <td className="py-3 text-right">
-                        {currencyCode} {amount.toLocaleString(undefined, {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2
-                        })}
-                      </td>
-                      <td className="py-3 text-right">
-                        {commission > 0 ? currencyCode : ''} {commission > 0 ? commission.toLocaleString(undefined, {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2
-                        }) : '-'}
-                      </td>
-                      <td className="py-3 text-center">
-                        <button
-                          onClick={() => handleEdit(transaction.id)}
-                          className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200"
-                        >
-                          <Edit className="w-4 h-4 inline" />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {transactions.length === 0 && (
-                  <tr>
-                    <td colSpan={7} className="py-8 text-center text-gray-500 dark:text-gray-400">
-                      {isLoading ? (
-                        <div className="flex justify-center items-center">
-                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
-                          <span className="ml-2">Loading transactions...</span>
-                        </div>
-                      ) : (
-                        'No transactions found'
-                      )}
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                {transactions.map((transaction) => (
+                  <tr key={transaction.id}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {new Date(transaction.transaction_date).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500">
+                      {transaction.description}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500">
+                      {getCustomerName(transaction)}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500">
+                      {getSupplierName(transaction)}
+                    </td>
+                    <td className="px-6 py-4 text-right text-sm text-gray-500">
+                      {formatAmount(getTransactionAmount(transaction))}
+                    </td>
+                    <td className="px-6 py-4 text-right text-sm text-gray-500">
+                      {formatAmount(getCommissionAmount(transaction))}
+                    </td>
+                    <td className="px-6 py-4 text-center text-sm">
+                      <button
+                        onClick={() => handleEdit(transaction.id)}
+                        className="text-blue-600 hover:text-blue-900 dark:hover:text-blue-400"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </button>
                     </td>
                   </tr>
-                )}
+                ))}
               </tbody>
             </table>
           </div>
-          
-          {transactions.length > 0 && (
-            <div className="mt-4 flex justify-between items-center">
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Showing {transactions.length} transactions
-              </p>
-              <button
-                onClick={() => {
-                  setLimit(prev => prev + 20);
-                  fetchTransactions();
-                }}
-                className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200"
-              >
-                Load more
-              </button>
-            </div>
-          )}
         </div>
       </div>
     </div>
