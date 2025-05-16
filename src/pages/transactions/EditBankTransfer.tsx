@@ -236,6 +236,7 @@ export default function EditBankTransfer() {
             purchase_rate,
             sales_rate,
             account_id,
+            amount,
             account:chart_of_accounts (
               id,
               name
@@ -247,6 +248,14 @@ export default function EditBankTransfer() {
 
       if (error) throw error;
       
+      // Check if data exists and has gl_transactions
+      if (!data || !data.gl_transactions || data.gl_transactions.length === 0) {
+        toast.error('Transaction details could not be loaded.');
+        navigate('/transactions/bank');
+        return;
+      }
+      
+      // Set transaction data after confirming it exists
       setTransaction(data);
       setVoucherNo(data.voucher_no);
 
@@ -284,19 +293,24 @@ export default function EditBankTransfer() {
       // Log the transaction data to debug
       console.log('Transaction data:', data);
 
-      // Calculate amount (Supplier's Credit - Commission)
-      const supplierCredit = supplierTrans ? supplierTrans.credit : 0;
+      // Calculate amount from gl_transactions
+      let amount = 0;
+      if (supplierTrans) {
+        // If amount field exists in gl_transactions, use it
+        if (supplierTrans.amount !== undefined && supplierTrans.amount !== null) {
+          amount = supplierTrans.amount;
+        } else {
+          // Fallback to credit if amount is not available
+          amount = supplierTrans.credit;
+        }
+      }
+      
       const commissionAmount = commissionTrans ? commissionTrans.credit : 0;
-      const amount = supplierCredit - commissionAmount;
+      
+      // Get selling and purchase rates
+      const sellingRate = customerTrans?.sales_rate || 0;
+      const purchaseRate = supplierTrans?.purchase_rate || 0;
 
-      // Get selling rate from transaction or calculate it
-      const sellingRate = customerTrans?.sales_rate || 
-      (customerTrans ? (customerTrans.debit / amount) * 100 : 0);
-      
-      // Get purchase rate from transaction or calculate it
-      const purchaseRate = supplierTrans?.purchase_rate || 
-      (supplierTrans ? (supplierTrans.credit / amount) * 100 : 0);
-      
       // Set form data
       setFormData({
         date: data.transaction_date,

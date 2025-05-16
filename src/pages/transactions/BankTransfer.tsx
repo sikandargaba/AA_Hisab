@@ -17,10 +17,12 @@ interface Transaction {
   transaction_date: string;
   description: string;
   status: string;
+  type_id: string;
   gl_transactions: {
     id: string;
     debit: number;
     credit: number;
+    amount : number;
     debit_doc_currency: number;
     credit_doc_currency: number;
     exchange_rate: number;
@@ -203,12 +205,14 @@ export default function BankTransfer() {
           transaction_date,
           description,
           status,
+          type_id,
           gl_transactions (
             id,
             debit,
             credit,
             debit_doc_currency,
             credit_doc_currency,
+            amount,
             exchange_rate,
             currency_id,
             purchase_rate,
@@ -428,17 +432,17 @@ export default function BankTransfer() {
       description: transaction.description,
       customer: customerTrans?.account.name,
       supplier: supplierTrans?.account.name,
-      amount: customerTrans?.debit_doc_currency,
+      amount: customerTrans?.amount,
       commission: commissionTrans?.credit
     });
   };
 
   const getTransactionAmount = (transaction: Transaction): number => {
-    const customerTransaction = transaction.gl_transactions.find(t => 
-      t.account_id !== commissionAccountId && t.debit > 0
+    const transactionEntry = transaction.gl_transactions.find(t => 
+      t.account_id !== commissionAccountId && t.amount > 0
     );
-    return customerTransaction?.debit_doc_currency || 0;
-  };
+    return transactionEntry?.amount || 0;
+};
 
   const getCustomerName = (transaction: Transaction): string => {
     // Find the customer transaction (debit entry)
@@ -478,6 +482,12 @@ export default function BankTransfer() {
     }
     
     return commissionTransaction?.credit || 0;
+  };
+
+  const getTransactionType = (transaction: Transaction): string => {
+    // Find the transaction type description based on type_id
+    const transactionType = transactionTypes.find(t => t.type_id === transaction.type_id);
+    return transactionType?.description || 'Unknown Type';
   };
 
 
@@ -721,6 +731,9 @@ export default function BankTransfer() {
                     Date
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Type
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Description
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -745,6 +758,9 @@ export default function BankTransfer() {
                   <tr key={transaction.id}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(transaction.transaction_date).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {getTransactionType(transaction)}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">
                       {transaction.description}
